@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#F7F4EE">
+  <title>计划</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      background: linear-gradient(135deg, #E5E0D8, #D8D3CB);
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 20px;
+      font-family: 'Noto Sans SC', -apple-system, 'PingFang SC', sans-serif;
+      color: #2D2A26; -webkit-font-smoothing: antialiased;
+    }
+
+    :root {
+      --bg: #F7F4EE; --card: #FFFFFF;
+      --sage: #94A89A; --honey: #B89968; --green: #7BA688;
+      --gray: #E8E4DB; --gray2: #F0EDE6;
+      --t1: #2D2A26; --t2: #8C8579; --t3: #B5AFA3;
+      --num: 'Inter', -apple-system, sans-serif;
+    }
+
+    .phone {
+      width: 390px; height: 844px;
+      background: var(--bg); border-radius: 44px;
+      overflow: hidden; position: relative;
+      box-shadow: 0 0 0 10px #1C1C1E, 0 30px 80px rgba(0,0,0,.25);
+      display: flex; flex-direction: column;
+    }
+    @media (max-width: 430px) {
+      body { background: var(--bg); padding: 0; overflow: hidden; }
+      .phone {
+        width: 100vw; height: 100vh;
+        border-radius: 0; box-shadow: none;
+        position: fixed; top: 0; left: 0;
+      }
+      .page {
+        padding-top: calc(env(safe-area-inset-top) + 161px);
+      }
+      .tabbar {
+        padding-bottom: calc(env(safe-area-inset-bottom) + 6px);
+      }
+      .overlay {
+        position: fixed;
+      }
+    }
+
+    .page-wrap { flex: 1; overflow: hidden; position: relative; }
+    .page {
+      position: absolute; inset: 0; overflow-y: auto;
+      padding: 95px 20px 20px; display: none; flex-direction: column;
+    }
+    .page.active { display: flex; animation: fadeIn .25s ease; }
+    .page::-webkit-scrollbar { display: none; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Header */
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; flex-shrink: 0; }
+    .header-left { display: flex; flex-direction: column; gap: 3px; }
+    .h-title { font-size: 22px; font-weight: 600; letter-spacing: -.3px; }
+    .h-sub { font-size: 13px; color: var(--t2); }
+    .add-btn {
+      width: 36px; height: 36px; background: var(--sage);
+      border-radius: 18px; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: transform .15s;
+      box-shadow: 0 2px 8px rgba(148,168,154,.3);
+    }
+    .add-btn:active { transform: scale(.88); }
+
+    /* Tab Bar */
+    .tabbar {
+      height: 65px; background: var(--card);
+      display: flex; align-items: center; justify-content: space-evenly;
+      padding: 12px 0 8px; flex-shrink: 0;
+      border-top: 1px solid rgba(232,228,219,.5);
+    }
+    .tab {
+      background: none; border: none; cursor: pointer;
+      font-family: inherit; font-size: 13px; color: var(--t3);
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 4px 10px; transition: color .2s;
+    }
+    .tab.active { font-weight: 600; color: var(--sage); }
+    .tab-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--sage); opacity: 0; transition: opacity .2s; }
+    .tab.active .tab-dot { opacity: 1; }
+
+    /* === Day Plan === */
+    .day-cols { display: flex; flex: 1; gap: 0; }
+    .day-col { flex: 1; display: flex; flex-direction: column; }
+    .day-col.l { padding-right: 14px; }
+    .day-col.r { padding-left: 14px; border-left: 1px solid var(--gray); }
+    .col-h { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .col-h-t { font-size: 15px; font-weight: 600; }
+    .col-h-c { font-family: var(--num); font-size: 11px; font-weight: 600; color: var(--t2); background: var(--gray); padding: 2px 7px; border-radius: 10px; }
+
+    .todo-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; cursor: pointer; }
+    .todo-item:active { opacity: .6; }
+    .cb {
+      width: 22px; height: 22px; border: 2px solid var(--gray); border-radius: 50%;
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all .2s;
+    }
+    .cb.on { background: var(--green); border-color: var(--green); }
+    .todo-txt { font-size: 14px; line-height: 1.4; word-break: break-all; }
+    .todo-txt.done { text-decoration: line-through; color: var(--t3); }
+
+    .empty-hint { font-size: 13px; color: var(--t3); padding: 20px 0; text-align: center; }
+
+    /* === Notebook List (Week/Month/Year) === */
+    .notebook { display: flex; flex-direction: column; gap: 2px; }
+    .nb-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid var(--gray2);
+      cursor: pointer;
+    }
+    .nb-item:active { background: var(--gray2); }
+    .nb-num {
+      font-family: var(--num); font-size: 14px; font-weight: 500;
+      color: var(--t3); min-width: 24px; text-align: right; line-height: 22px;
+    }
+    .nb-cb {
+      width: 20px; height: 20px; border: 2px solid var(--gray); border-radius: 5px;
+      flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center;
+      transition: all .2s;
+    }
+    .nb-cb.on { background: var(--sage); border-color: var(--sage); }
+    .nb-txt { font-size: 14px; line-height: 1.5; flex: 1; word-break: break-all; }
+    .nb-txt.done { text-decoration: line-through; color: var(--t3); }
+    .nb-del {
+      width: 24px; height: 24px; border: none; background: none; cursor: pointer;
+      color: var(--t3); font-size: 18px; display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity .2s; flex-shrink: 0;
+    }
+    .nb-item:hover .nb-del { opacity: 1; }
+
+    /* === Countdown === */
+    .cd-card {
+      background: var(--card); border-radius: 14px; padding: 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,.03); margin-bottom: 12px;
+    }
+    .cd-left { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+    .cd-name { font-size: 15px; font-weight: 500; word-break: break-all; }
+    .cd-date { font-family: var(--num); font-size: 13px; color: var(--t2); }
+    .cd-right { display: flex; align-items: baseline; gap: 2px; flex-shrink: 0; margin-left: 12px; }
+    .cd-days { font-family: var(--num); font-size: 28px; font-weight: 700; line-height: 1; }
+    .cd-unit { font-size: 13px; color: var(--t2); }
+    .cd-del {
+      width: 24px; height: 24px; border: none; background: none; cursor: pointer;
+      color: var(--t3); font-size: 16px; flex-shrink: 0; margin-left: 8px;
+    }
+
+    /* === Health === */
+    .h-card { background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.03); }
+    .h-card-t { font-size: 16px; font-weight: 600; margin-bottom: 14px; }
+    .weight-display { display: flex; align-items: baseline; gap: 6px; margin-bottom: 14px; }
+    .weight-val { font-family: var(--num); font-size: 42px; font-weight: 700; line-height: 1; letter-spacing: -1px; }
+    .weight-unit { font-family: var(--num); font-size: 16px; font-weight: 500; color: var(--t2); }
+    .weight-trend { font-family: var(--num); font-size: 14px; font-weight: 500; margin-left: 8px; }
+    .weight-trend.up { color: var(--honey); }
+    .weight-trend.down { color: var(--green); }
+    .weight-trend.flat { color: var(--t2); }
+    .weight-top { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+    .weight-left { flex: 1; display: flex; flex-direction: column; }
+    .weight-chart-wrap { width: 130px; flex-shrink: 0; position: relative; }
+    .weight-chart-wrap canvas { display: block; width: 130px; height: 80px; }
+    .weight-chart-empty { font-size: 11px; color: var(--t3); text-align: center; line-height: 80px; }
+    .h-btns { display: flex; gap: 10px; margin-bottom: 14px; }
+    .btn-p { flex: 1; background: var(--sage); color: #fff; border: none; border-radius: 12px; padding: 10px 0; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: transform .15s; }
+    .btn-p:active { transform: scale(.97); }
+    .btn-s { flex: 1; background: transparent; color: var(--t2); border: 1px solid var(--gray); border-radius: 12px; padding: 10px 0; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: transform .15s; }
+    .btn-s:active { transform: scale(.97); }
+    .record { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; }
+    .record + .record { border-top: 1px solid var(--gray); }
+    .r-date { font-size: 12px; color: var(--t2); }
+    .r-val { font-family: var(--num); font-size: 14px; font-weight: 500; }
+    .r-trend { font-family: var(--num); font-size: 12px; font-weight: 500; }
+    .r-trend.up { color: var(--honey); }
+    .r-trend.down { color: var(--green); }
+    .r-trend.flat { color: var(--t2); }
+
+    .meal-row { display: flex; gap: 14px; align-items: flex-start; padding: 8px 0; }
+    .meal-row + .meal-row { border-top: 1px solid var(--gray2); }
+    .meal-label { font-size: 14px; font-weight: 500; width: 42px; flex-shrink: 0; line-height: 1.6; }
+    .meal-items { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .meal-item { font-size: 13px; color: var(--t2); line-height: 1.6; }
+    .meal-add { display: inline-flex; align-items: center; gap: 5px; color: var(--sage); font-size: 13px; font-weight: 500; cursor: pointer; }
+    .meal-add:active { opacity: .6; }
+    .meal-del { color: var(--t3); font-size: 12px; cursor: pointer; margin-left: 8px; }
+
+    /* === Schedule === */
+    .sched-row { display: flex; gap: 14px; align-items: flex-start; padding: 8px 0; }
+    .sched-row + .sched-row { border-top: 1px solid var(--gray2); }
+    .sched-day { font-size: 14px; font-weight: 500; width: 42px; flex-shrink: 0; line-height: 1.6; }
+    .sched-items { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .sched-item { font-size: 13px; color: var(--t2); line-height: 1.6; }
+    .sched-add { display: inline-flex; align-items: center; gap: 5px; color: var(--sage); font-size: 13px; font-weight: 500; cursor: pointer; }
+    .sched-add:active { opacity: .6; }
+    .sched-del { color: var(--t3); font-size: 12px; cursor: pointer; margin-left: 8px; }
+
+    /* === Daily Quote === */
+    .quote-bar {
+      background: var(--gray2); border-radius: 10px; padding: 10px 14px;
+      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+      cursor: pointer; transition: background .2s; flex-shrink: 0;
+      border-left: 3px solid var(--sage);
+    }
+    .quote-bar:active { background: var(--gray); }
+    .quote-icon { font-size: 16px; color: var(--sage); flex-shrink: 0; line-height: 1; font-style: italic; font-weight: 700; }
+    .quote-text { font-size: 13px; color: var(--t2); line-height: 1.5; flex: 1; word-break: break-all; }
+    .quote-text.placeholder { color: var(--t3); }
+    .quote-edit { font-size: 12px; color: var(--t3); flex-shrink: 0; }
+
+    /* === Profile / My Page === */
+    .profile-summary {
+      background: var(--card); border-radius: 14px; padding: 18px 16px;
+      margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.03);
+    }
+    .profile-name { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+    .profile-sub { font-size: 13px; color: var(--t2); }
+    .profile-stats { display: flex; gap: 0; margin-top: 14px; }
+    .profile-stat { flex: 1; text-align: center; }
+    .profile-stat + .profile-stat { border-left: 1px solid var(--gray); }
+    .profile-stat-num { font-family: var(--num); font-size: 22px; font-weight: 700; line-height: 1; }
+    .profile-stat-label { font-size: 11px; color: var(--t2); margin-top: 4px; }
+
+    .mine-card {
+      background: var(--card); border-radius: 14px; margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.03); overflow: hidden;
+    }
+    .mine-card-h {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; cursor: pointer;
+    }
+    .mine-card-h:active { background: var(--gray2); }
+    .mine-card-h-l { display: flex; align-items: center; gap: 10px; }
+    .mine-card-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .mine-card-title { font-size: 15px; font-weight: 500; }
+    .mine-card-h-r { display: flex; align-items: center; gap: 8px; }
+    .mine-card-badge {
+      font-family: var(--num); font-size: 13px; font-weight: 600;
+      color: var(--t2); background: var(--gray); padding: 2px 10px; border-radius: 10px;
+    }
+    .mine-card-arrow {
+      font-size: 12px; color: var(--t3); transition: transform .25s;
+    }
+    .mine-card.open .mine-card-arrow { transform: rotate(90deg); }
+    .mine-card-body {
+      max-height: 0; overflow: hidden; transition: max-height .3s ease;
+    }
+    .mine-card.open .mine-card-body { max-height: 800px; }
+    .mine-card-inner { padding: 0 16px 14px; }
+
+    .mine-record {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0; font-size: 13px;
+    }
+    .mine-record + .mine-record { border-top: 1px solid var(--gray2); }
+    .mine-record-text { flex: 1; word-break: break-all; }
+    .mine-record-text.done { text-decoration: line-through; color: var(--t3); }
+    .mine-record-meta { font-size: 12px; color: var(--t3); flex-shrink: 0; margin-left: 8px; }
+    .mine-empty { font-size: 13px; color: var(--t3); text-align: center; padding: 12px 0; }
+
+    .mine-section-title {
+      font-size: 12px; color: var(--t3); font-weight: 500;
+      padding: 4px 0 8px; text-transform: uppercase; letter-spacing: .5px;
+    }
+    .mine-progress { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .mine-progress-bar { flex: 1; height: 6px; background: var(--gray); border-radius: 3px; overflow: hidden; }
+    .mine-progress-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width .3s; }
+    .mine-progress-text { font-family: var(--num); font-size: 12px; color: var(--t2); flex-shrink: 0; }
+
+    .mine-data-btns { display: flex; gap: 10px; margin-top: 6px; }
+    .mine-data-btn {
+      flex: 1; border: none; border-radius: 12px; padding: 11px 0;
+      font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+      transition: transform .15s;
+    }
+    .mine-data-btn:active { transform: scale(.97); }
+    .mine-data-btn.export { background: var(--sage); color: #fff; }
+    .mine-data-btn.clear { background: transparent; color: #C04040; border: 1px solid #E8C0C0; }
+
+    /* === Modal / Input Overlay === */
+    .overlay {
+      position: absolute; inset: 0; background: rgba(0,0,0,.3);
+      display: none; align-items: flex-end; justify-content: center; z-index: 100;
+    }
+    .overlay.show { display: flex; animation: fadeIn .2s ease; }
+    .modal {
+      background: var(--card); width: 100%; border-radius: 20px 20px 0 0;
+      padding: 24px 20px 32px; animation: slideUp .3s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-title { font-size: 17px; font-weight: 600; text-align: center; margin-bottom: 20px; }
+    .modal-input {
+      width: 100%; border: 1.5px solid var(--gray); border-radius: 12px;
+      padding: 12px 14px; font-family: inherit; font-size: 15px; color: var(--t1);
+      background: var(--bg); outline: none; transition: border-color .2s;
+    }
+    .modal-input:focus { border-color: var(--sage); }
+    .modal-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .modal-row .modal-input { flex: 1; }
+    .modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+    .modal-btn-ok { flex: 1; background: var(--sage); color: #fff; border: none; border-radius: 12px; padding: 12px 0; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .modal-btn-cancel { flex: 1; background: var(--gray2); color: var(--t2); border: none; border-radius: 12px; padding: 12px 0; font-family: inherit; font-size: 15px; cursor: pointer; }
+    .modal-label { font-size: 13px; color: var(--t2); margin-bottom: 6px; margin-top: 14px; }
+    .modal-hint { font-size: 12px; color: var(--t3); margin-top: 10px; text-align: center; }
+
+    .check-svg { width: 12px; height: 12px; }
+    .check-svg-sm { width: 10px; height: 10px; }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <div class="page-wrap">
+
+      <!-- ===== 日计划 ===== -->
+      <div class="page active" data-page="day">
+        <div class="header">
+          <div class="header-left">
+            <div class="h-title">今天</div>
+            <div class="h-sub" id="day-date"></div>
+          </div>
+          <button class="add-btn" onclick="openModal('day')">
+            <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 3.5V12.5M3.5 8H12.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="day-cols">
+          <div class="day-col l">
+            <div class="col-h"><span class="col-h-t">待办</span><span class="col-h-c" id="day-pending-count">0</span></div>
+            <div id="day-pending"></div>
+          </div>
+          <div class="day-col r">
+            <div class="col-h"><span class="col-h-t">已完成</span><span class="col-h-c" id="day-done-count">0</span></div>
+            <div id="day-done"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 周计划 ===== -->
+      <div class="page" data-page="week">
+        <div class="header">
+          <div class="header-left">
+            <div class="h-title">本周</div>
+            <div class="h-sub" id="week-range"></div>
+          </div>
+          <button class="add-btn" onclick="openModal('week')">
+            <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 3.5V12.5M3.5 8H12.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="day-cols">
+          <div class="day-col l">
+            <div class="col-h"><span class="col-h-t">待办</span><span class="col-h-c" id="week-pending-count">0</span></div>
+            <div id="week-pending"></div>
+          </div>
+          <div class="day-col r">
+            <div class="col-h"><span class="col-h-t">已完成</span><span class="col-h-c" id="week-done-count">0</span></div>
+            <div id="week-done"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 月计划 ===== -->
+      <div class="page" data-page="month">
+        <div class="header">
+          <div class="header-left">
+            <div class="h-title">本月</div>
+            <div class="h-sub" id="month-label"></div>
+          </div>
+          <button class="add-btn" onclick="openModal('month')">
+            <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 3.5V12.5M3.5 8H12.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="day-cols">
+          <div class="day-col l">
+            <div class="col-h"><span class="col-h-t">待办</span><span class="col-h-c" id="month-pending-count">0</span></div>
+            <div id="month-pending"></div>
+          </div>
+          <div class="day-col r">
+            <div class="col-h"><span class="col-h-t">已完成</span><span class="col-h-c" id="month-done-count">0</span></div>
+            <div id="month-done"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 年计划 ===== -->
+      <div class="page" data-page="year">
+        <div class="header">
+          <div class="header-left">
+            <div class="h-title" id="year-title"></div>
+            <div class="h-sub">年度计划</div>
+          </div>
+          <button class="add-btn" onclick="openModal('year')">
+            <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 3.5V12.5M3.5 8H12.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="day-cols">
+          <div class="day-col l">
+            <div class="col-h"><span class="col-h-t">待办</span><span class="col-h-c" id="year-pending-count">0</span></div>
+            <div id="year-pending"></div>
+          </div>
+          <div class="day-col r">
+            <div class="col-h"><span class="col-h-t">已完成</span><span class="col-h-c" id="year-done-count">0</span></div>
+            <div id="year-done"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 倒计时 ===== -->
+      <div class="page" data-page="countdown">
+        <div class="header">
+          <div class="header-left">
+            <div class="h-title">倒计时</div>
+            <div class="h-sub">重要日期</div>
+          </div>
+          <button class="add-btn" onclick="openModal('countdown')">
+            <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 3.5V12.5M3.5 8H12.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div id="cd-list"></div>
+      </div>
+
+      <!-- ===== 健康 ===== -->
+      <div class="page" data-page="health">
+        <div class="header">
+          <div class="header-left">
+            <div class="h-title">健康</div>
+            <div class="h-sub">今日记录</div>
+          </div>
+          <button class="add-btn" onclick="openModal('health-meal')">
+            <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 3.5V12.5M3.5 8H12.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+
+        <div class="h-card">
+          <div class="h-card-t">体重</div>
+          <div class="weight-top">
+            <div class="weight-left">
+              <div class="weight-display">
+                <span class="weight-val" id="w-val">--</span>
+                <span class="weight-unit">斤</span>
+                <span class="weight-trend flat" id="w-trend"></span>
+              </div>
+            </div>
+            <div class="weight-chart-wrap">
+              <canvas id="weight-chart"></canvas>
+            </div>
+          </div>
+          <div class="h-btns">
+            <button class="btn-p" style="width:100%" onclick="openModal('weight')">手动记录</button>
+          </div>
+          <div id="w-records"></div>
+        </div>
+
+        <div class="h-card">
+          <div class="h-card-t">今日饮食</div>
+          <div id="diet-list"></div>
+        </div>
+
+        <div class="h-card">
+          <div class="h-card-t">课表</div>
+          <div id="schedule-list"></div>
+        </div>
+      </div>
+
+      <!-- ===== 我的 ===== -->
+      <div class="page" data-page="mine">
+        <div class="header">
+          <div class="header-left">
+            <div class="h-title">我的</div>
+            <div class="h-sub">记录与管理</div>
+          </div>
+        </div>
+
+        <div class="profile-summary">
+          <div class="profile-name" id="mine-date"></div>
+          <div class="profile-sub">坚持记录，让生活更有条理</div>
+          <div class="profile-stats">
+            <div class="profile-stat">
+              <div class="profile-stat-num" id="stat-today" style="color:var(--sage)">0</div>
+              <div class="profile-stat-label">今日待办</div>
+            </div>
+            <div class="profile-stat">
+              <div class="profile-stat-num" id="stat-done" style="color:var(--green)">0</div>
+              <div class="profile-stat-label">已完成</div>
+            </div>
+            <div class="profile-stat">
+              <div class="profile-stat-num" id="stat-cd" style="color:var(--honey)">0</div>
+              <div class="profile-stat-label">倒计时</div>
+            </div>
+            <div class="profile-stat">
+              <div class="profile-stat-num" id="stat-weight" style="color:var(--sage)">--</div>
+              <div class="profile-stat-label">体重(斤)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mine-card" id="mc-day" onclick="toggleMineCard('mc-day')">
+          <div class="mine-card-h">
+            <div class="mine-card-h-l">
+              <div class="mine-card-icon" style="background:#E0E8E2;color:var(--sage)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2.5" y="3.5" width="11" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5 2V4M11 2V4M2.5 7H13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </div>
+              <span class="mine-card-title">今日计划</span>
+            </div>
+            <div class="mine-card-h-r">
+              <span class="mine-card-badge" id="mc-day-badge">0</span>
+              <span class="mine-card-arrow">&#8250;</span>
+            </div>
+          </div>
+          <div class="mine-card-body"><div class="mine-card-inner" id="mc-day-body"></div></div>
+        </div>
+
+        <div class="mine-card" id="mc-weight" onclick="toggleMineCard('mc-weight')">
+          <div class="mine-card-h">
+            <div class="mine-card-h-l">
+              <div class="mine-card-icon" style="background:#F5E8D5;color:var(--honey)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 13C3 7 5 4 8 4C11 4 13 7 13 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="9" r="1.5" stroke="currentColor" stroke-width="1.5"/></svg>
+              </div>
+              <span class="mine-card-title">体重记录</span>
+            </div>
+            <div class="mine-card-h-r">
+              <span class="mine-card-badge" id="mc-weight-badge">0</span>
+              <span class="mine-card-arrow">&#8250;</span>
+            </div>
+          </div>
+          <div class="mine-card-body"><div class="mine-card-inner" id="mc-weight-body"></div></div>
+        </div>
+
+        <div class="mine-card" id="mc-diet" onclick="toggleMineCard('mc-diet')">
+          <div class="mine-card-h">
+            <div class="mine-card-h-l">
+              <div class="mine-card-icon" style="background:#E8E0F0;color:#8B7AB8">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6V13H12V6M3 6H13M6 3V6M10 3V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <span class="mine-card-title">饮食记录</span>
+            </div>
+            <div class="mine-card-h-r">
+              <span class="mine-card-badge" id="mc-diet-badge">0</span>
+              <span class="mine-card-arrow">&#8250;</span>
+            </div>
+          </div>
+          <div class="mine-card-body"><div class="mine-card-inner" id="mc-diet-body"></div></div>
+        </div>
+
+        <div class="mine-card" id="mc-sched" onclick="toggleMineCard('mc-sched')">
+          <div class="mine-card-h">
+            <div class="mine-card-h-l">
+              <div class="mine-card-icon" style="background:#D5E8E8;color:#5BA0A0">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4H14V13H2V4ZM2 7H14M5 2V5M11 2V5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <span class="mine-card-title">课表记录</span>
+            </div>
+            <div class="mine-card-h-r">
+              <span class="mine-card-badge" id="mc-sched-badge">0</span>
+              <span class="mine-card-arrow">&#8250;</span>
+            </div>
+          </div>
+          <div class="mine-card-body"><div class="mine-card-inner" id="mc-sched-body"></div></div>
+        </div>
+
+        <div class="mine-card" id="mc-cd" onclick="toggleMineCard('mc-cd')">
+          <div class="mine-card-h">
+            <div class="mine-card-h-l">
+              <div class="mine-card-icon" style="background:#F0E0D5;color:var(--honey)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 6V8.5L9.5 10M6 2L4 3.5M10 2L12 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </div>
+              <span class="mine-card-title">倒计时记录</span>
+            </div>
+            <div class="mine-card-h-r">
+              <span class="mine-card-badge" id="mc-cd-badge">0</span>
+              <span class="mine-card-arrow">&#8250;</span>
+            </div>
+          </div>
+          <div class="mine-card-body"><div class="mine-card-inner" id="mc-cd-body"></div></div>
+        </div>
+
+        <div class="mine-card" id="mc-plans" onclick="toggleMineCard('mc-plans')">
+          <div class="mine-card-h">
+            <div class="mine-card-h-l">
+              <div class="mine-card-icon" style="background:#E0E8E2;color:var(--green)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4L6 7L8 5L13 10M3 12H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <span class="mine-card-title">计划完成情况</span>
+            </div>
+            <div class="mine-card-h-r">
+              <span class="mine-card-arrow">&#8250;</span>
+            </div>
+          </div>
+          <div class="mine-card-body"><div class="mine-card-inner" id="mc-plans-body"></div></div>
+        </div>
+
+        <div class="mine-card" id="mc-data" onclick="toggleMineCard('mc-data')">
+          <div class="mine-card-h">
+            <div class="mine-card-h-l">
+              <div class="mine-card-icon" style="background:#E8E4DB;color:var(--t2)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2V10M5 7L8 10L11 7M3 13H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <span class="mine-card-title">数据管理</span>
+            </div>
+            <div class="mine-card-h-r">
+              <span class="mine-card-arrow">&#8250;</span>
+            </div>
+          </div>
+          <div class="mine-card-body">
+            <div class="mine-card-inner">
+              <div class="mine-section-title">导出 / 清除</div>
+              <div class="mine-data-btns">
+                <button class="mine-data-btn export" onclick="exportData()">导出全部数据</button>
+                <button class="mine-data-btn clear" onclick="clearAllData()">清除全部数据</button>
+              </div>
+              <div style="font-size:12px;color:var(--t3);margin-top:10px;line-height:1.6">
+                导出数据将复制到剪贴板，可粘贴到备忘录保存。清除数据不可恢复，请谨慎操作。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:20px"></div>
+      </div>
+
+    </div>
+
+    <!-- Tab Bar -->
+    <nav class="tabbar">
+      <button class="tab active" data-tab="day"><span>日</span><span class="tab-dot"></span></button>
+      <button class="tab" data-tab="week"><span>周</span><span class="tab-dot"></span></button>
+      <button class="tab" data-tab="month"><span>月</span><span class="tab-dot"></span></button>
+      <button class="tab" data-tab="year"><span>年</span><span class="tab-dot"></span></button>
+      <button class="tab" data-tab="countdown"><span>计时</span><span class="tab-dot"></span></button>
+      <button class="tab" data-tab="health"><span>健康</span><span class="tab-dot"></span></button>
+      <button class="tab" data-tab="mine"><span>我的</span><span class="tab-dot"></span></button>
+    </nav>
+
+    <!-- Modal -->
+    <div class="overlay" id="overlay" onclick="closeModalBg(event)">
+      <div class="modal" id="modal" onclick="event.stopPropagation()">
+        <div class="modal-title" id="modal-title">添加</div>
+        <div id="modal-body"></div>
+        <div class="modal-btns">
+          <button class="modal-btn-cancel" onclick="closeModal()">取消</button>
+          <button class="modal-btn-ok" id="modal-ok" onclick="confirmModal()">确定</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ============ Storage Layer (IndexedDB primary + localStorage backup) ============
+    // Android WebView 会定期清除 localStorage，IndexedDB 更持久
+    let _idb = null;
+    let _cache = {}; // 内存缓存，支持同步读取
+
+    function _initIDB() {
+      return new Promise(function(resolve) {
+        try {
+          var req = indexedDB.open('planapp_db', 1);
+          req.onupgradeneeded = function(e) {
+            e.target.result.createObjectStore('kv');
+          };
+          req.onsuccess = function(e) { _idb = e.target.result; resolve(); };
+          req.onerror = function() { _idb = null; resolve(); };
+        } catch(err) { _idb = null; resolve(); }
+      });
+    }
+
+    function _idbGet(key) {
+      return new Promise(function(resolve) {
+        if (!_idb) { resolve(undefined); return; }
+        try {
+          var tx = _idb.transaction('kv', 'readonly');
+          var req = tx.objectStore('kv').get(key);
+          req.onsuccess = function() { resolve(req.result); };
+          req.onerror = function() { resolve(undefined); };
+        } catch(e) { resolve(undefined); }
+      });
+    }
+
+    function _idbSet(key, val) {
+      if (!_idb) return;
+      try {
+        var tx = _idb.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put(val, key);
+      } catch(e) {}
+    }
+
+    function _idbDel(key) {
+      if (!_idb) return;
+      try {
+        var tx = _idb.transaction('kv', 'readwrite');
+        tx.objectStore('kv').delete(key);
+      } catch(e) {}
+    }
+
+    const DB = {
+      get(key, def) {
+        // 同步从内存缓存读取
+        if (key in _cache) return _cache[key];
+        // 降级到 localStorage
+        try {
+          var v = JSON.parse(localStorage.getItem(key));
+          if (v !== null) { _cache[key] = v; return v; }
+        } catch(e) {}
+        return def;
+      },
+      set(key, val) {
+        // 写入内存缓存（同步）
+        _cache[key] = val;
+        // 写入 localStorage（同步，备份）
+        try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
+        // 写入 IndexedDB（异步，最持久）
+        _idbSet(key, val);
+      },
+      del(key) {
+        delete _cache[key];
+        try { localStorage.removeItem(key); } catch(e) {}
+        _idbDel(key);
+      }
+    };
+
+    let data = {};
+
+    function save(key) {
+      var storeKey = key === 'weights' ? 'plan_w' : key === 'diet' ? 'plan_diet' : key === 'schedule' ? 'plan_sched' : key === 'quotes' ? 'plan_quotes' : key === 'countdown' ? 'plan_cd' : 'plan_' + key;
+      DB.set(storeKey, data[key]);
+    }
+
+    function uid() { return Date.now() + '_' + Math.random().toString(36).slice(2, 6); }
+
+    // ============ Date Helpers ============
+    const now = new Date();
+    const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+    function fmtDate(d) { return (d.getMonth()+1) + '月' + d.getDate() + '日 ' + weekdays[d.getDay()]; }
+    function fmtDateShort(d) { return (d.getMonth()+1) + '月' + d.getDate() + '日'; }
+    function daysBetween(d1, d2) {
+      return Math.ceil((d2 - d1) / 86400000);
+    }
+    function todayStr() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+
+    // ============ SVG ============
+    const CHECK = '<svg class="check-svg" viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const CHECK_SM = '<svg class="check-svg-sm" viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const PLUS_SM = '<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M7 2.5V11.5M2.5 7H11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+
+    // ============ Render: Daily Quote ============
+    const quotePlaceholders = {
+      day: '点击写下今日寄语',
+      week: '点击写下本周寄语',
+      month: '点击写下本月寄语',
+      year: '点击写下本年寄语',
+      countdown: '点击写下寄语',
+      health: '点击写下寄语',
+    };
+    function renderQuote(key) {
+      const el = document.getElementById('quote-' + key);
+      if (!el) return;
+      const text = data.quotes[key] || '';
+      const textEl = el.querySelector('.quote-text');
+      if (text) {
+        textEl.textContent = text;
+        textEl.classList.remove('placeholder');
+      } else {
+        textEl.textContent = quotePlaceholders[key] || '点击写下寄语';
+        textEl.classList.add('placeholder');
+      }
+    }
+    function renderAllQuotes() {
+      ['day','week','month','year','countdown','health'].forEach(renderQuote);
+    }
+
+    // ============ Render: Day Plan ============
+    function renderDay() { renderSplit('day'); }
+
+    // ============ Render: Split Layout (Day/Week/Month/Year) ============
+    function renderSplit(key) {
+      const pending = data[key].filter(i => !i.done);
+      const done = data[key].filter(i => i.done);
+
+      const pCount = document.getElementById(key + '-pending-count');
+      const dCount = document.getElementById(key + '-done-count');
+      if (pCount) pCount.textContent = pending.length;
+      if (dCount) dCount.textContent = done.length;
+
+      const pe = document.getElementById(key + '-pending');
+      const de = document.getElementById(key + '-done');
+      if (!pe || !de) return;
+
+      pe.innerHTML = pending.length ? pending.map(i =>
+        `<div class="todo-item" onclick="toggleSplit('${key}','${i.id}')">
+          <div class="cb"></div><span class="todo-txt">${esc(i.text)}</span>
+        </div>`
+      ).join('') : '<div class="empty-hint">点击 + 添加</div>';
+
+      de.innerHTML = done.length ? done.map(i =>
+        `<div class="todo-item" onclick="toggleSplit('${key}','${i.id}')">
+          <div class="cb on">${CHECK}</div><span class="todo-txt done">${esc(i.text)}</span>
+        </div>`
+      ).join('') : '';
+    }
+
+    function toggleSplit(key, id) {
+      const item = data[key].find(i => i.id === id);
+      if (item) { item.done = !item.done; save(key); renderSplit(key); }
+    }
+
+    // ============ Render: Countdown ============
+    function renderCountdown() {
+      const el = document.getElementById('cd-list');
+      const today = new Date(); today.setHours(0,0,0,0);
+
+      el.innerHTML = data.countdown.length ? data.countdown.map(c => {
+        const target = new Date(c.date);
+        const days = daysBetween(today, target);
+        const isPast = days < 0;
+        const color = c.important ? 'var(--honey)' : 'var(--sage)';
+        return `<div class="cd-card">
+          <div class="cd-left">
+            <div class="cd-name" style="${c.important ? 'font-weight:700;color:var(--honey)' : ''}">${esc(c.name)}</div>
+            <div class="cd-date">${fmtDateShort(target)}</div>
+          </div>
+          <div class="cd-right">
+            <span class="cd-days" style="color:${color}">${Math.abs(days)}</span>
+            <span class="cd-unit">${isPast ? '天前' : '天'}</span>
+          </div>
+          <button class="cd-del" onclick="delCD('${c.id}')">&times;</button>
+        </div>`;
+      }).join('') : '<div class="empty-hint">点击 + 添加倒计时</div>';
+    }
+
+    function delCD(id) {
+      data.countdown = data.countdown.filter(c => c.id !== id);
+      save('countdown'); renderCountdown();
+    }
+
+    // ============ Render: Weight Chart (Canvas) ============
+    function renderWeightChart() {
+      const canvas = document.getElementById('weight-chart');
+      if (!canvas) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = 130, cssH = 80;
+      canvas.width = cssW * dpr;
+      canvas.height = cssH * dpr;
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, cssW, cssH);
+
+      const ws = data.weights;
+      if (!ws || ws.length === 0) {
+        ctx.fillStyle = '#B5AFA3';
+        ctx.font = '11px "Noto Sans SC", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('暂无数据', cssW / 2, cssH / 2);
+        return;
+      }
+
+      var padX = 12, padTop = 14, padBottom = 16;
+      var chartW = cssW - padX * 2;
+      var chartH = cssH - padTop - padBottom;
+
+      var weights = ws.map(function(w) { return w.weight; });
+      var minW = Math.min.apply(null, weights);
+      var maxW = Math.max.apply(null, weights);
+      var range = maxW - minW;
+      var yPad = range > 0 ? range * 0.2 : Math.max(Math.abs(minW) * 0.05, 1);
+      var yMin = minW - yPad;
+      var yMax = maxW + yPad;
+      var yRange = yMax - yMin || 1;
+
+      // Calculate points
+      var points = ws.map(function(w, i) {
+        return {
+          x: padX + (ws.length === 1 ? chartW / 2 : (chartW / (ws.length - 1)) * i),
+          y: padTop + chartH - ((w.weight - yMin) / yRange) * chartH
+        };
+      });
+
+      // Draw fill area under line
+      if (points.length >= 2) {
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, padTop + chartH);
+        points.forEach(function(p) { ctx.lineTo(p.x, p.y); });
+        ctx.lineTo(points[points.length - 1].x, padTop + chartH);
+        ctx.closePath();
+        var grad = ctx.createLinearGradient(0, padTop, 0, padTop + chartH);
+        grad.addColorStop(0, 'rgba(148,168,154,0.25)');
+        grad.addColorStop(1, 'rgba(148,168,154,0.02)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+
+      // Draw line
+      if (points.length >= 2) {
+        ctx.strokeStyle = '#94A89A';
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        points.forEach(function(p, i) {
+          if (i === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        });
+        ctx.stroke();
+      }
+
+      // Draw dots
+      points.forEach(function(p, i) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = i === points.length - 1 ? '#7BA688' : '#94A89A';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
+
+      // Draw min/max labels
+      ctx.fillStyle = '#B5AFA3';
+      ctx.font = '9px "Inter", sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(maxW.toFixed(1), 2, 1);
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(minW.toFixed(1), 2, cssH - 1);
+    }
+
+    // ============ Render: Health ============
+    function renderHealth() {
+      // Weight
+      const ws = data.weights;
+      const wVal = document.getElementById('w-val');
+      const wTrend = document.getElementById('w-trend');
+      const wRec = document.getElementById('w-records');
+
+      if (ws.length === 0) {
+        wVal.textContent = '--';
+        wTrend.textContent = '';
+        wTrend.className = 'weight-trend flat';
+        wRec.innerHTML = '<div class="empty-hint" style="padding:10px 0">暂无记录</div>';
+      } else {
+        const latest = ws[ws.length - 1];
+        wVal.textContent = latest.weight;
+
+        if (ws.length >= 2) {
+          const prev = ws[ws.length - 2];
+          const diff = latest.weight - prev.weight;
+          if (Math.abs(diff) < 0.05) {
+            wTrend.textContent = '- 持平';
+            wTrend.className = 'weight-trend flat';
+          } else if (diff > 0) {
+            wTrend.textContent = '\u2191 ' + diff.toFixed(1) + ' 斤';
+            wTrend.className = 'weight-trend up';
+          } else {
+            wTrend.textContent = '\u2193 ' + Math.abs(diff).toFixed(1) + ' 斤';
+            wTrend.className = 'weight-trend down';
+          }
+        } else {
+          wTrend.textContent = '';
+        }
+
+        // Records (latest 5, reverse)
+        const recent = ws.slice(-5).reverse();
+        wRec.innerHTML = recent.map((r, idx) => {
+          const nextIdx = ws.length - 1 - idx;
+          let trendHtml = '';
+          if (nextIdx > 0) {
+            const prevW = ws[nextIdx - 1];
+            const diff = r.weight - prevW.weight;
+            if (Math.abs(diff) < 0.05) { trendHtml = '<span class="r-trend flat">-</span>'; }
+            else if (diff > 0) { trendHtml = '<span class="r-trend up">\u2191' + diff.toFixed(1) + '</span>'; }
+            else { trendHtml = '<span class="r-trend down">\u2193' + Math.abs(diff).toFixed(1) + '</span>'; }
+          }
+          return `<div class="record">
+            <span class="r-date">${esc(r.date)}</span>
+            <span class="r-val">${r.weight} 斤</span>
+            ${trendHtml}
+          </div>`;
+        }).join('');
+      }
+
+      // Diet
+      const meals = ['breakfast', 'lunch', 'dinner'];
+      const labels = { breakfast: '早餐', lunch: '午餐', dinner: '晚餐' };
+      if (!data.diet.breakfast) { data.diet = { breakfast: [], lunch: [], dinner: [] }; }
+      const dietEl = document.getElementById('diet-list');
+      dietEl.innerHTML = meals.map(m => {
+        const items = data.diet[m] || [];
+        const itemsHtml = items.length ? items.map(it =>
+          `<div class="meal-item">${esc(it)} <span class="meal-del" onclick="delMeal('${m}','${esc(it)}')">&times;</span></div>`
+        ).join('') : '';
+        return `<div class="meal-row">
+          <div class="meal-label">${labels[m]}</div>
+          <div class="meal-items">
+            ${itemsHtml}
+            <div class="meal-add" onclick="openModal('meal-${m}')">${PLUS_SM}<span>添加</span></div>
+          </div>
+        </div>`;
+      }).join('');
+      // Draw weight chart
+      renderWeightChart();
+    }
+
+    function delMeal(meal, item) {
+      data.diet[meal] = data.diet[meal].filter(i => i !== item);
+      save('diet'); renderHealth();
+    }
+
+    // ============ Render: Schedule ============
+    const schedDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    const schedLabels = { mon:'周一', tue:'周二', wed:'周三', thu:'周四', fri:'周五', sat:'周六', sun:'周日' };
+
+    function renderSchedule() {
+      if (!data.schedule.mon) { data.schedule = { mon:[], tue:[], wed:[], thu:[], fri:[], sat:[], sun:[] }; }
+      const el = document.getElementById('schedule-list');
+      el.innerHTML = schedDays.map(d => {
+        const items = data.schedule[d] || [];
+        const itemsHtml = items.length ? items.map(it =>
+          `<div class="sched-item">${esc(it)} <span class="sched-del" onclick="delSched('${d}','${esc(it)}')">&times;</span></div>`
+        ).join('') : '';
+        return `<div class="sched-row">
+          <div class="sched-day">${schedLabels[d]}</div>
+          <div class="sched-items">
+            ${itemsHtml}
+            <div class="sched-add" onclick="openModal('sched-${d}')">${PLUS_SM}<span>添加</span></div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function delSched(day, item) {
+      data.schedule[day] = data.schedule[day].filter(i => i !== item);
+      save('schedule'); renderSchedule();
+    }
+
+    // ============ Render: My Page ============
+    function toggleMineCard(id) {
+      document.getElementById(id).classList.toggle('open');
+    }
+
+    function renderMine() {
+      // Summary header
+      document.getElementById('mine-date').textContent = fmtDate(now);
+      const dayPending = data.day.filter(i => !i.done).length;
+      const dayDone = data.day.filter(i => i.done).length;
+      document.getElementById('stat-today').textContent = dayPending;
+      document.getElementById('stat-done').textContent = dayDone;
+      document.getElementById('stat-cd').textContent = data.countdown.length;
+      const latestW = data.weights.length ? data.weights[data.weights.length - 1].weight : '--';
+      document.getElementById('stat-weight').textContent = latestW;
+
+      // Today plan
+      const dayItems = data.day;
+      document.getElementById('mc-day-badge').textContent = dayItems.length;
+      const dayBody = document.getElementById('mc-day-body');
+      if (dayItems.length) {
+        dayBody.innerHTML = dayItems.map(i =>
+          `<div class="mine-record">
+            <span class="mine-record-text ${i.done ? 'done' : ''}">${esc(i.text)}</span>
+            <span class="mine-record-meta">${i.done ? '已完成' : '待办'}</span>
+          </div>`
+        ).join('');
+      } else {
+        dayBody.innerHTML = '<div class="mine-empty">暂无今日记录</div>';
+      }
+
+      // Weight records
+      document.getElementById('mc-weight-badge').textContent = data.weights.length;
+      const wBody = document.getElementById('mc-weight-body');
+      if (data.weights.length) {
+        wBody.innerHTML = data.weights.slice().reverse().map((r, idx) => {
+          const realIdx = data.weights.length - 1 - idx;
+          let trend = '';
+          if (realIdx > 0) {
+            const diff = r.weight - data.weights[realIdx - 1].weight;
+            if (Math.abs(diff) < 0.05) trend = '-';
+            else if (diff > 0) trend = '\u2191' + diff.toFixed(1);
+            else trend = '\u2193' + Math.abs(diff).toFixed(1);
+          }
+          return `<div class="mine-record">
+            <span class="mine-record-text">${esc(r.date)}</span>
+            <span class="mine-record-meta">${r.weight} 斤 ${trend}</span>
+          </div>`;
+        }).join('');
+      } else {
+        wBody.innerHTML = '<div class="mine-empty">暂无体重记录</div>';
+      }
+
+      // Diet records
+      if (!data.diet.breakfast) data.diet = { breakfast: [], lunch: [], dinner: [] };
+      const mealLabels = { breakfast: '早餐', lunch: '午餐', dinner: '晚餐' };
+      let dietCount = 0;
+      let dietHtml = '';
+      ['breakfast', 'lunch', 'dinner'].forEach(m => {
+        const items = data.diet[m] || [];
+        dietCount += items.length;
+        if (items.length) {
+          dietHtml += '<div class="mine-section-title">' + mealLabels[m] + '</div>';
+          dietHtml += items.map(it =>
+            `<div class="mine-record"><span class="mine-record-text">${esc(it)}</span></div>`
+          ).join('');
+        }
+      });
+      document.getElementById('mc-diet-badge').textContent = dietCount;
+      document.getElementById('mc-diet-body').innerHTML = dietHtml || '<div class="mine-empty">暂无饮食记录</div>';
+
+      // Schedule records
+      if (!data.schedule.mon) data.schedule = { mon:[], tue:[], wed:[], thu:[], fri:[], sat:[], sun:[] };
+      let schedCount = 0;
+      let schedHtml = '';
+      schedDays.forEach(d => {
+        const items = data.schedule[d] || [];
+        schedCount += items.length;
+        if (items.length) {
+          schedHtml += '<div class="mine-section-title">' + schedLabels[d] + '</div>';
+          schedHtml += items.map(it =>
+            `<div class="mine-record"><span class="mine-record-text">${esc(it)}</span></div>`
+          ).join('');
+        }
+      });
+      document.getElementById('mc-sched-badge').textContent = schedCount;
+      document.getElementById('mc-sched-body').innerHTML = schedHtml || '<div class="mine-empty">暂无课表记录</div>';
+
+      // Countdown records
+      document.getElementById('mc-cd-badge').textContent = data.countdown.length;
+      const cdBody = document.getElementById('mc-cd-body');
+      const today = new Date(); today.setHours(0,0,0,0);
+      if (data.countdown.length) {
+        cdBody.innerHTML = data.countdown.map(c => {
+          const target = new Date(c.date);
+          const days = daysBetween(today, target);
+          const isPast = days < 0;
+          const color = c.important ? 'var(--honey)' : 'var(--sage)';
+          return `<div class="mine-record">
+            <span class="mine-record-text" style="${c.important ? 'font-weight:600' : ''}">${esc(c.name)}</span>
+            <span class="mine-record-meta" style="color:${color}">${Math.abs(days)}${isPast ? '天前' : '天'} | ${fmtDateShort(target)}</span>
+          </div>`;
+        }).join('');
+      } else {
+        cdBody.innerHTML = '<div class="mine-empty">暂无倒计时记录</div>';
+      }
+
+      // Plans completion
+      const plansBody = document.getElementById('mc-plans-body');
+      const planKeys = [
+        { key: 'day', label: '日计划' },
+        { key: 'week', label: '周计划' },
+        { key: 'month', label: '月计划' },
+        { key: 'year', label: '年计划' },
+      ];
+      plansBody.innerHTML = planKeys.map(p => {
+        const items = data[p.key];
+        const total = items.length;
+        const done = items.filter(i => i.done).length;
+        const pct = total ? Math.round(done / total * 100) : 0;
+        return `<div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:2px">
+            <span style="font-weight:500">${p.label}</span>
+            <span style="color:var(--t2)">${done}/${total}</span>
+          </div>
+          <div class="mine-progress">
+            <div class="mine-progress-bar"><div class="mine-progress-fill" style="width:${pct}%"></div></div>
+            <span class="mine-progress-text">${pct}%</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function exportData() {
+      const exportObj = {
+        exportDate: todayStr(),
+        day: data.day,
+        week: data.week,
+        month: data.month,
+        year: data.year,
+        countdown: data.countdown,
+        weights: data.weights,
+        diet: data.diet,
+        schedule: data.schedule,
+      };
+      const text = JSON.stringify(exportObj, null, 2);
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+          alert('数据已复制到剪贴板，可粘贴到备忘录保存');
+        }).catch(() => {
+          fallbackCopy(text);
+        });
+      } else {
+        fallbackCopy(text);
+      }
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); alert('数据已复制到剪贴板'); }
+      catch { alert('复制失败，请手动复制'); }
+      document.body.removeChild(ta);
+    }
+
+    function clearAllData() {
+      if (!confirm('确定要清除全部数据吗？此操作不可恢复！')) return;
+      if (!confirm('再次确认：清除后所有计划、体重、饮食、课表、倒计时记录将全部删除。')) return;
+      ['plan_day','plan_week','plan_month','plan_year','plan_cd','plan_w','plan_diet','plan_sched','plan_quotes'].forEach(function(k) { DB.del(k); });
+      data = {
+        day: [], week: [], month: [], year: [],
+        countdown: [], weights: [],
+        diet: { breakfast: [], lunch: [], dinner: [] },
+        schedule: { mon:[], tue:[], wed:[], thu:[], fri:[], sat:[], sun:[] },
+        quotes: {},
+      };
+      renderDay(); renderSplit('week'); renderSplit('month'); renderSplit('year');
+      renderCountdown(); renderHealth(); renderSchedule(); renderMine();
+      alert('全部数据已清除');
+    }
+
+    // ============ Modal ============
+    let modalMode = null;
+
+    function openModal(mode) {
+      modalMode = mode;
+      const overlay = document.getElementById('overlay');
+      const title = document.getElementById('modal-title');
+      const body = document.getElementById('modal-body');
+
+      const inputHtml = (placeholder, type, id) =>
+        `<input class="modal-input" type="${type||'text'}" id="${id}" placeholder="${placeholder}" autocomplete="off">`;
+
+      if (mode === 'day') {
+        title.textContent = '添加待办';
+        body.innerHTML = inputHtml('输入待办内容...', 'text', 'm-input');
+      } else if (mode === 'week' || mode === 'month' || mode === 'year') {
+        title.textContent = '添加' + ({week:'周',month:'月',year:'年'})[mode] + '计划';
+        body.innerHTML = inputHtml('输入计划内容...', 'text', 'm-input');
+      } else if (mode === 'countdown') {
+        title.textContent = '添加倒计时';
+        body.innerHTML =
+          inputHtml('事件名称（如：妈妈生日）', 'text', 'm-name') +
+          '<div class="modal-label">目标日期</div>' +
+          `<input class="modal-input" type="date" id="m-date" value="${todayStr()}">` +
+          '<div class="modal-hint">勾选重要事件会以金色标注</div>' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-top:12px"><input type="checkbox" id="m-imp" style="width:18px;height:18px"><label for="m-imp" style="font-size:14px;color:var(--t2)">标记为重要</label></div>';
+      } else if (mode === 'weight') {
+        title.textContent = '记录体重';
+        body.innerHTML = inputHtml('输入体重 (斤)', 'number', 'm-weight') +
+          '<div class="modal-label">日期</div>' +
+          `<input class="modal-input" type="date" id="m-wdate" value="${todayStr()}">`;
+      } else if (mode && mode.startsWith('meal-')) {
+        const meal = mode.split('-')[1];
+        const labels = { breakfast: '早餐', lunch: '午餐', dinner: '晚餐' };
+        title.textContent = '添加' + labels[meal];
+        body.innerHTML = inputHtml('输入食物（如：燕麦粥）', 'text', 'm-meal');
+      } else if (mode && mode.startsWith('sched-')) {
+        const day = mode.split('-')[1];
+        title.textContent = '添加' + schedLabels[day] + '课程';
+        body.innerHTML = inputHtml('输入课程（如：高等数学）', 'text', 'm-sched');
+      } else if (mode === 'health-meal') {
+        title.textContent = '添加饮食';
+        body.innerHTML =
+          '<div class="modal-label">选择餐次</div>' +
+          '<div style="display:flex;gap:8px;margin-bottom:10px">' +
+            ['breakfast','lunch','dinner'].map(m => `<button class="btn-s" style="flex:1;padding:8px 0" id="meal-sel-${m}" onclick="selectMeal('${m}')">${({breakfast:'早餐',lunch:'午餐',dinner:'晚餐'})[m]}</button>`).join('') +
+          '</div>' +
+          inputHtml('输入食物', 'text', 'm-meal-input');
+        selectMeal('breakfast');
+      } else if (mode && mode.startsWith('quote-')) {
+        const key = mode.split('-')[1];
+        const labels = { day:'今日', week:'本周', month:'本月', year:'本年', countdown:'倒计时', health:'健康' };
+        title.textContent = '编辑' + (labels[key] || '') + '寄语';
+        const existing = data.quotes[key] || '';
+        body.innerHTML = '<textarea class="modal-input" id="m-quote" placeholder="写下你的寄语..." style="min-height:80px;resize:none;line-height:1.6">' + esc(existing) + '</textarea>' +
+          '<div class="modal-hint">留空则清除寄语</div>';
+      }
+
+      overlay.classList.add('show');
+      setTimeout(() => { const inp = body.querySelector('input, textarea'); if (inp) inp.focus(); }, 300);
+    }
+
+    let selectedMeal = 'breakfast';
+    function selectMeal(m) {
+      selectedMeal = m;
+      ['breakfast','lunch','dinner'].forEach(x => {
+        const el = document.getElementById('meal-sel-' + x);
+        if (el) {
+          if (x === m) { el.style.borderColor = 'var(--sage)'; el.style.color = 'var(--sage)'; }
+          else { el.style.borderColor = 'var(--gray)'; el.style.color = 'var(--t2)'; }
+        }
+      });
+    }
+
+    function closeModal() {
+      document.getElementById('overlay').classList.remove('show');
+      modalMode = null;
+    }
+
+    function closeModalBg(e) { if (e.target.id === 'overlay') closeModal(); }
+
+    function confirmModal() {
+      if (modalMode === 'day') {
+        const v = document.getElementById('m-input').value.trim();
+        if (!v) return;
+        data.day.push({ id: uid(), text: v, done: false });
+        save('day'); renderDay();
+      } else if (modalMode === 'week' || modalMode === 'month' || modalMode === 'year') {
+        const v = document.getElementById('m-input').value.trim();
+        if (!v) return;
+        data[modalMode].push({ id: uid(), text: v, done: false });
+        save(modalMode); renderSplit(modalMode);
+      } else if (modalMode === 'countdown') {
+        const name = document.getElementById('m-name').value.trim();
+        const date = document.getElementById('m-date').value;
+        const imp = document.getElementById('m-imp').checked;
+        if (!name || !date) return;
+        data.countdown.push({ id: uid(), name, date, important: imp });
+        save('countdown'); renderCountdown();
+      } else if (modalMode === 'weight') {
+        const w = parseFloat(document.getElementById('m-weight').value);
+        const d = document.getElementById('m-wdate').value;
+        if (isNaN(w) || w <= 0) return;
+        const dateLabel = d ? d.replace(/-/g, '/').slice(5) + '日' : fmtDateShort(new Date());
+        data.weights.push({ id: uid(), date: dateLabel, weight: w });
+        save('weights'); renderHealth();
+      } else if (modalMode && modalMode.startsWith('meal-')) {
+        const meal = modalMode.split('-')[1];
+        const v = document.getElementById('m-meal').value.trim();
+        if (!v) return;
+        if (!data.diet[meal]) data.diet[meal] = [];
+        data.diet[meal].push(v);
+        save('diet'); renderHealth();
+      } else if (modalMode && modalMode.startsWith('sched-')) {
+        const day = modalMode.split('-')[1];
+        const v = document.getElementById('m-sched').value.trim();
+        if (!v) return;
+        if (!data.schedule[day]) data.schedule[day] = [];
+        data.schedule[day].push(v);
+        save('schedule'); renderSchedule();
+      } else if (modalMode === 'health-meal') {
+        const v = document.getElementById('m-meal-input').value.trim();
+        if (!v) return;
+        if (!data.diet[selectedMeal]) data.diet[selectedMeal] = [];
+        data.diet[selectedMeal].push(v);
+        save('diet'); renderHealth();
+      } else if (modalMode && modalMode.startsWith('quote-')) {
+        const key = modalMode.split('-')[1];
+        const v = document.getElementById('m-quote').value.trim();
+        if (v) { data.quotes[key] = v; } else { delete data.quotes[key]; }
+        save('quotes'); renderQuote(key);
+      }
+      closeModal();
+    }
+
+    // Enter key to confirm (skip for textarea)
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && document.getElementById('overlay').classList.contains('show')) {
+        const tag = e.target.tagName;
+        if (tag === 'TEXTAREA') return;
+        e.preventDefault();
+        confirmModal();
+      }
+    });
+
+    // ============ Esc ============
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ============ Tab Switching ============
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelector('.page[data-page="' + tab.dataset.tab + '"]').classList.add('active');
+        if (tab.dataset.tab === 'mine') renderMine();
+        if (tab.dataset.tab === 'health') renderWeightChart();
+      });
+    });
+
+    // ============ Init (async: load from IndexedDB first) ============
+    async function initApp() {
+      // 1. 初始化 IndexedDB
+      await _initIDB();
+
+      // 2. 请求持久化存储权限（防止系统自动清除）
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().then(function(persisted) {
+          console.log('Persistent storage: ' + (persisted ? 'granted' : 'denied'));
+        });
+      }
+
+      // 3. 从 IndexedDB 加载所有数据到内存缓存
+      var storageKeys = {
+        'plan_day': 'day',
+        'plan_week': 'week',
+        'plan_month': 'month',
+        'plan_year': 'year',
+        'plan_cd': 'countdown',
+        'plan_w': 'weights',
+        'plan_diet': 'diet',
+        'plan_sched': 'schedule',
+        'plan_quotes': 'quotes'
+      };
+
+      for (var storeKey in storageKeys) {
+        var val = await _idbGet(storeKey);
+        if (val !== undefined && val !== null) {
+          _cache[storeKey] = val;
+        }
+      }
+
+      // 4. 从缓存加载到 data 对象
+      data = {
+        day: DB.get('plan_day', []),
+        week: DB.get('plan_week', []),
+        month: DB.get('plan_month', []),
+        year: DB.get('plan_year', []),
+        countdown: DB.get('plan_cd', []),
+        weights: DB.get('plan_w', []),
+        diet: DB.get('plan_diet', {}),
+        schedule: DB.get('plan_sched', {}),
+        quotes: DB.get('plan_quotes', {}),
+      };
+
+      // 4.5 数据迁移：检查旧版错误 key 中的数据
+      try {
+        if (data.countdown.length === 0) {
+          var oldCd = JSON.parse(localStorage.getItem('plan_countdown'));
+          if (oldCd && oldCd.length) { data.countdown = oldCd; save('countdown'); }
+        }
+        if (data.weights.length === 0) {
+          var oldW = JSON.parse(localStorage.getItem('plan_weights'));
+          if (oldW && oldW.length) { data.weights = oldW; save('weights'); }
+        }
+        if (data.schedule.mon === undefined) {
+          var oldS = JSON.parse(localStorage.getItem('plan_schedule'));
+          if (oldS && oldS.mon) { data.schedule = oldS; save('schedule'); }
+        }
+      } catch(e) {}
+
+      // 5. 设置日期显示
+      document.getElementById('day-date').textContent = fmtDate(now);
+      var monday = new Date(now);
+      monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+      var sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      document.getElementById('week-range').textContent = fmtDateShort(monday) + ' - ' + fmtDateShort(sunday);
+      document.getElementById('month-label').textContent = (now.getMonth() + 1) + '月';
+      document.getElementById('year-title').textContent = now.getFullYear() + '年';
+
+      // 6. 渲染所有页面
+      renderDay();
+      renderSplit('week');
+      renderSplit('month');
+      renderSplit('year');
+      renderCountdown();
+      renderHealth();
+      renderSchedule();
+      renderAllQuotes();
+      renderMine();
+    }
+
+    initApp();
+  </script>
+</body>
+</html>
